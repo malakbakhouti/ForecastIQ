@@ -91,6 +91,13 @@ cd frontend
 npm install
 npm run dev
 ```
+# Sample Dataset
+
+`train.csv` — sample sales dataset used to test ForecastIQ's import and forecasting features.
+
+**Source:** [Sales Forecasting dataset by Rohit Sahoo, Kaggle](https://www.kaggle.com/datasets/rohitsahoo/sales-forecasting)
+
+This file is provided for demonstration purposes only. All rights belong to the original dataset author on Kaggle.
 
 **🔮 Future Improvements**
 * Additional forecasting models (Prophet, LSTM)
