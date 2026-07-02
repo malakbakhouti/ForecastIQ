@@ -1,0 +1,1095 @@
+"use client";
+
+// components/DashboardTabs.js — Les 5 onglets du tableau de bord
+// (Vue d'ensemble, Prévisions, Anomalies, Catégories, Modèles ML)
+
+import React, { useMemo } from "react";
+import {
+  ResponsiveContainer, ComposedChart, BarChart, Bar, AreaChart, Area, LineChart,
+  Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceDot, ReferenceLine, Cell,
+} from "recharts";
+
+const COLORS = {
+  green: "#16a34a",
+  greenLight: "#dcfce7",
+  blue: "#2563eb",
+  movavg: "#8b5cf6",
+  trend: "#f97316",
+  red: "#ef4444",
+  text: "#111827",
+  subtle: "#6b7280",
+  border: "#e5e7eb",
+};
+
+const MODEL_COLORS = {
+  linear: "#2563eb",
+  polynomial: "#f97316",
+  random_forest: "#16a34a",
+  arima: "#8b5cf6",
+  ensemble: "#dc2626",
+};
+
+export const fmtK = (n) => {
+  if (n === null || n === undefined) return "—";
+  const v = Number(n);
+  if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(2) + "M";
+  if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(1) + "K";
+  return v.toFixed(0);
+};
+
+// Nombre formaté avec séparateurs de milliers (style français)
+export const fmtNum = (n, decimals = 0) => {
+  if (n === null || n === undefined) return "—";
+  return Number(n).toLocaleString("fr-FR", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+};
+
+// Date "01 janv. 2019" — gère YYYY-MM-DD et YYYY-MM
+export const fmtDateFR = (label) => {
+  if (!label) return "—";
+  // Si c'est juste une année "2019" → retourner tel quel
+  if (/^\d{4}$/.test(label)) return label;
+  try {
+    const d = new Date(label.length === 7 ? label + "-01" : label);
+    if (isNaN(d.getTime())) return label;
+    return d.toLocaleDateString("fr-FR", {
+      day: "2-digit", month: "short", year: "numeric",
+    });
+  } catch {
+    return label;
+  }
+};
+
+const fmtPct = (v) => (v > 0 ? "+" : "") + Number(v).toFixed(1) + "%";
+
+// ============================================================
+// ONGLET 1 — Vue d'ensemble
+// ============================================================
+export function OverviewTab({ result }) {
+  const linear = result.models.find((m) => m.key === "linear");
+
+  const chartData = useMemo(() => {
+    const hist = result.series.map((s, i) => ({
+      label: s.period,
+      ventes: s.value,
+      movingAverage: result.moving_average[i],
+      trend: linear ? linear.fitted[i] : null,
+    }));
+    const fc = result.forecast_labels.map((label, i) => ({
+      label,
+      forecast: result.ensemble.forecast[i],
+    }));
+    return [...hist, ...fc];
+  }, [result, linear]);
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-base font-semibold text-gray-900">
+          Évolution des ventes — historique, tendance et prévisions
+        </h3>
+        <p className="text-xs text-gray-500 mt-1">
+          {result.stats.periods} périodes — granularité {result.granularity}
+        </p>
+        <div className="h-80 mt-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} vertical={false} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: COLORS.subtle }}
+                interval={Math.max(1, Math.floor(chartData.length / 12))}
+              />
+              <YAxis tick={{ fontSize: 11, fill: COLORS.subtle }} tickFormatter={fmtK} />
+              <Tooltip formatter={(v) => fmtK(v)} contentStyle={{ fontSize: 12, borderRadius: 6 }} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Area type="monotone" dataKey="ventes" name="Ventes réelles"
+                stroke={COLORS.green} fill={COLORS.greenLight} strokeWidth={2} />
+              <Line type="monotone" dataKey="movingAverage" name="Moyenne mobile"
+                stroke={COLORS.movavg} strokeWidth={1.5} strokeDasharray="4 3" dot={false} />
+              <Line type="monotone" dataKey="trend" name="Tendance linéaire"
+                stroke={COLORS.trend} strokeWidth={1.5} strokeDasharray="6 4" dot={false} />
+              <Line type="monotone" dataKey="forecast" name="Prévision (ensemble)"
+                stroke={COLORS.blue} strokeWidth={2} dot={{ r: 4, fill: COLORS.blue }} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-4">
+            Statistiques descriptives
+          </h3>
+          <dl className="text-sm divide-y divide-gray-100">
+            <StatRow k="Total" v={fmtK(result.stats.total)} />
+            <StatRow k="Moyenne par période" v={fmtK(result.stats.mean)} />
+            <StatRow k="Minimum" v={fmtK(result.stats.min)} />
+            <StatRow k="Maximum" v={fmtK(result.stats.max)} />
+            <StatRow k="Croissance" v={fmtPct(result.stats.growth_percent)} />
+            <StatRow k="Périodes analysées" v={result.stats.periods} />
+          </dl>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-4">
+            Nettoyage des données
+          </h3>
+          <dl className="text-sm divide-y divide-gray-100">
+            <StatRow k="Lignes importées" v={result._cleaning?.rows_before ?? "—"} />
+            <StatRow k="Doublons retirés" v={result._cleaning?.duplicates_removed ?? "—"} />
+            <StatRow k="Dates invalides" v={result._cleaning?.invalid_dates_removed ?? "—"} />
+            <StatRow k="Valeurs invalides" v={result._cleaning?.invalid_values_removed ?? "—"} />
+            <StatRow k="Lignes exploitées" v={result._cleaning?.rows_after ?? "—"} />
+          </dl>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatRow({ k, v }) {
+  return (
+    <div className="flex justify-between py-2.5">
+      <dt className="text-gray-600">{k}</dt>
+      <dd className="font-medium text-gray-900">{v}</dd>
+    </div>
+  );
+}
+
+// ============================================================
+// ONGLET 2 — Prévisions
+// Le prof veut : (1) comparaison réel vs prédit pour les MÊMES périodes
+// (le test set des 20%) avec écart en %, et (2) prévisions futures basées
+// UNIQUEMENT sur les modèles fiables (≥70%).
+// ============================================================
+export function ForecastTab({ result }) {
+  const validation = result.validation;
+  const ensemble = result.ensemble;
+  const allRejected = ensemble?.all_rejected;
+
+  // Construire la comparaison réel vs prédit pour chaque modèle fiable, période par période
+  let comparisonData = [];
+  let reliableModels = [];
+
+  if (validation && !validation.error && validation.test_labels) {
+    const testLabels = validation.test_labels;
+    const testValues = validation.test_values;
+    reliableModels = Object.entries(validation.models)
+      .filter(([_, m]) => m.is_reliable)
+      .map(([key, m]) => ({
+        key,
+        name: {
+          linear: "Régression linéaire",
+          polynomial: "Régression polynomiale",
+          random_forest: "Random Forest",
+          arima: "ARIMA(1,1,1)",
+        }[key] || key,
+        accuracy: m.accuracy_pct,
+        predictions: m.predictions || [],
+      }));
+
+    // Une ligne par période, avec réel + prédiction de chaque modèle fiable + écart %
+    comparisonData = testLabels.map((label, i) => {
+      const row = { label, real: testValues[i] };
+      reliableModels.forEach((m) => {
+        const pred = m.predictions[i];
+        row[m.key] = pred;
+        row[`${m.key}_ecart`] = pred != null && testValues[i] !== 0
+          ? ((pred - testValues[i]) / testValues[i]) * 100
+          : null;
+      });
+      return row;
+    });
+  }
+
+  // Prévisions futures (ensemble fiable)
+  const futureForecast = result.forecast_labels.map((label, i) => ({
+    label,
+    value: ensemble?.forecast?.[i],
+  }));
+
+  return (
+    <div className="space-y-6">
+      {/* ====== Alerte si aucun modèle fiable ====== */}
+      {allRejected && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 className="text-base font-semibold text-red-900">
+            Aucun modèle fiable
+          </h3>
+          <p className="text-sm text-red-700 mt-1">
+            Tous les modèles ont une précision inférieure à 70% sur le test set.
+            Les prévisions ne peuvent pas être affichées.
+          </p>
+        </div>
+      )}
+
+      {/* ====== Comparaison réel vs prédit (test set) ====== */}
+      {comparisonData.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-base font-semibold text-gray-900">
+            Comparaison : ventes réelles vs prévisions
+          </h3>
+          <p className="text-xs text-gray-500 mt-1">
+            Test set 20% — {comparisonData.length} périodes — modèles fiables uniquement (précision ≥ 70%)
+          </p>
+
+          {/* Graphique comparatif : barres réelles vs lignes prédites */}
+          <div className="h-80 mt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={comparisonData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: COLORS.subtle }} />
+                <YAxis tickFormatter={fmtK} tick={{ fontSize: 11, fill: COLORS.subtle }} />
+                <Tooltip formatter={(v) => fmtK(v)} contentStyle={{ fontSize: 12, borderRadius: 6 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="real" name="Ventes réelles" fill={COLORS.green} radius={[3, 3, 0, 0]} />
+                {reliableModels.map((m) => (
+                  <Line
+                    key={m.key}
+                    type="monotone"
+                    dataKey={m.key}
+                    name={`${m.name} (${m.accuracy}%)`}
+                    stroke={MODEL_COLORS[m.key]}
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
+                ))}
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* === COURBE DE PRÉCISION (accuracy) — période par période === */}
+          <div className="mt-6 p-5 rounded-lg border border-emerald-200" style={{ background: "#f0fdf9" }}>
+            <h4 className="text-sm font-semibold text-gray-900 mb-1">
+              Évolution de la précision dans le temps (période par période)
+            </h4>
+            <p className="text-xs text-gray-600 mb-4">
+              Pourcentage de qualité du modèle pour chaque période du test set.
+              Calcul : <strong>Précision = 100% − |y_pred − y_test| / y_test × 100</strong>.
+              La ligne pointillée rouge marque le seuil de 70% (limite de fiabilité).
+            </p>
+
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={comparisonData.map((row) => {
+                    const point = { label: row.label };
+                    reliableModels.forEach((m) => {
+                      const ecart = row[`${m.key}_ecart`];
+                      point[m.key] = ecart != null ? Math.max(0, 100 - Math.abs(ecart)) : null;
+                    });
+                    return point;
+                  })}
+                  margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: COLORS.subtle }} />
+                  <YAxis
+                    domain={[0, 100]}
+                    tickFormatter={(v) => v + "%"}
+                    tick={{ fontSize: 11, fill: COLORS.subtle }}
+                  />
+                  <Tooltip
+                    formatter={(v) => v != null ? v.toFixed(1) + "%" : "—"}
+                    contentStyle={{ fontSize: 12, borderRadius: 6 }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {/* Ligne de référence seuil 70% */}
+                  <ReferenceLine
+                    y={70}
+                    stroke="#dc2626"
+                    strokeDasharray="5 5"
+                    strokeWidth={2}
+                    label={{
+                      value: "Seuil de fiabilité 70%",
+                      position: "right",
+                      fontSize: 10,
+                      fill: "#dc2626",
+                    }}
+                  />
+                  {/* Une ligne par modèle fiable */}
+                  {reliableModels.map((m) => (
+                    <Line
+                      key={m.key}
+                      type="monotone"
+                      dataKey={m.key}
+                      name={`${m.name} (moyenne ${m.accuracy}%)`}
+                      stroke={MODEL_COLORS[m.key]}
+                      strokeWidth={2.5}
+                      dot={{ r: 4 }}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Mini-résumé sous la courbe */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
+              {reliableModels.map((m) => {
+                const precColor =
+                  m.accuracy >= 90 ? "#16a34a" :
+                  m.accuracy >= 75 ? "#f59e0b" : "#dc2626";
+                return (
+                  <div key={m.key} className="bg-white rounded-md border border-gray-200 p-3">
+                    <div className="text-xs text-gray-500 truncate">{m.name}</div>
+                    <div className="text-2xl font-bold mt-1" style={{ color: precColor }}>
+                      {m.accuracy}%
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">Précision globale (moyenne)</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Tableau détaillé période par période avec précision par ligne et globale */}
+          <div className="mt-6">
+            <h4 className="text-sm font-semibold text-gray-800 mb-2">
+              Tableau détaillé : précision par période et précision globale
+            </h4>
+            <p className="text-xs text-gray-500 mb-3">
+              Pour chaque période du test set, l'écart entre la valeur prévue et la valeur réelle est calculé.
+              La précision = 100% − |écart|. La dernière ligne (Total) affiche la précision moyenne du modèle.
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 text-left bg-gray-50">
+                    <th className="py-2.5 px-3 font-medium text-gray-700">Période</th>
+                    <th className="py-2.5 px-3 font-medium text-gray-700">Réel</th>
+                    {reliableModels.map((m) => (
+                      <th key={m.key} className="py-2.5 px-3 font-medium text-gray-700 border-l border-gray-200" colSpan="3">
+                        {m.name}
+                      </th>
+                    ))}
+                  </tr>
+                  <tr className="border-b border-gray-200 text-left bg-gray-50">
+                    <th className="py-2 px-3"></th>
+                    <th className="py-2 px-3"></th>
+                    {reliableModels.map((m) => (
+                      <React.Fragment key={m.key}>
+                        <th className="py-2 px-3 font-normal text-xs text-gray-500 border-l border-gray-200">Prévu</th>
+                        <th className="py-2 px-3 font-normal text-xs text-gray-500">Écart %</th>
+                        <th className="py-2 px-3 font-normal text-xs text-gray-500">Précision</th>
+                      </React.Fragment>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparisonData.map((row) => (
+                    <tr key={row.label} className="border-b border-gray-50">
+                      <td className="py-2.5 px-3 font-medium text-gray-900">{row.label}</td>
+                      <td className="py-2.5 px-3 font-semibold" style={{ color: COLORS.green }}>
+                        {fmtK(row.real)}
+                      </td>
+                      {reliableModels.map((m) => {
+                        const ecart = row[`${m.key}_ecart`];
+                        const ecartAbs = ecart != null ? Math.abs(ecart) : null;
+                        const precision = ecartAbs != null ? Math.max(0, 100 - ecartAbs) : null;
+                        const ecartColor =
+                          ecartAbs == null ? "#6b7280" :
+                          ecartAbs < 10 ? "#16a34a" :
+                          ecartAbs < 25 ? "#f59e0b" : "#dc2626";
+                        const precColor =
+                          precision == null ? "#6b7280" :
+                          precision >= 90 ? "#16a34a" :
+                          precision >= 75 ? "#f59e0b" : "#dc2626";
+                        return (
+                          <React.Fragment key={m.key}>
+                            <td className="py-2.5 px-3 text-gray-700 border-l border-gray-200">{fmtK(row[m.key])}</td>
+                            <td className="py-2.5 px-3 font-medium" style={{ color: ecartColor }}>
+                              {ecart != null
+                                ? (ecart > 0 ? "+" : "") + ecart.toFixed(1) + "%"
+                                : "—"}
+                            </td>
+                            <td className="py-2.5 px-3 font-semibold" style={{ color: precColor }}>
+                              {precision != null ? precision.toFixed(1) + "%" : "—"}
+                            </td>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                  {/* Ligne TOTAL — précision globale (moyenne) */}
+                  <tr className="bg-gray-100 font-bold border-t-2 border-gray-300">
+                    <td className="py-3 px-3 text-gray-900">TOTAL</td>
+                    <td className="py-3 px-3 text-gray-500 text-xs font-normal">
+                      Moyenne globale
+                    </td>
+                    {reliableModels.map((m) => {
+                      // Précision globale = accuracy_pct du backend (déjà calculée via 100 - MAPE)
+                      const globalPrec = m.accuracy;
+                      const precColor =
+                        globalPrec >= 90 ? "#16a34a" :
+                        globalPrec >= 75 ? "#f59e0b" : "#dc2626";
+                      return (
+                        <React.Fragment key={m.key}>
+                          <td className="py-3 px-3 border-l border-gray-200"></td>
+                          <td className="py-3 px-3"></td>
+                          <td className="py-3 px-3 font-bold text-base" style={{ color: precColor }}>
+                            {globalPrec}%
+                          </td>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            {/* Légende des couleurs */}
+            <div className="flex flex-wrap gap-4 mt-3 text-xs text-gray-600">
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full" style={{ background: "#16a34a" }}></span>
+                Précision ≥ 90% (excellent)
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full" style={{ background: "#f59e0b" }}></span>
+                75-90% (acceptable)
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full" style={{ background: "#dc2626" }}></span>
+                &lt; 75% (faible)
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====== Prévisions futures (refonte professionnelle) ====== */}
+      {!allRejected && (() => {
+        const forecastValues = ensemble.forecast || [];
+        const totalForecast = forecastValues.reduce((s, v) => s + (v || 0), 0);
+        const avgForecast = forecastValues.length ? totalForecast / forecastValues.length : 0;
+        const lastHistorical = result.series[result.series.length - 1]?.value || 0;
+        const totalHistorical = result.series.slice(-forecastValues.length).reduce((s, v) => s + (v?.value || 0), 0);
+        const growthVsLast = lastHistorical
+          ? ((forecastValues[0] - lastHistorical) / lastHistorical) * 100
+          : 0;
+        const growthTotal = totalHistorical
+          ? ((totalForecast - totalHistorical) / totalHistorical) * 100
+          : 0;
+        const reliableModelsCount = ensemble.reliable_models?.length || 0;
+        const ensembleAccuracy = ensemble.accuracy_pct || 0;
+        const granularityLabel = {
+          daily: "jour", weekly: "semaine", monthly: "mois", yearly: "an"
+        }[result.granularity] || "période";
+        const granularityLabelPlural = {
+          daily: "jours", weekly: "semaines", monthly: "mois", yearly: "ans"
+        }[result.granularity] || "périodes";
+        const firstDate = fmtDateFR(result.forecast_labels[0]);
+        const lastDate = fmtDateFR(result.forecast_labels[result.forecast_labels.length - 1]);
+
+        return (
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            {/* En-tête professionnel */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">
+                Prévisions des ventes — {result.horizon} prochains {granularityLabelPlural}
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Période couverte : <strong>{firstDate}</strong> à <strong>{lastDate}</strong>
+              </p>
+            </div>
+
+            {/* === SECTION 1 — Résumé exécutif (4 cartes KPI) === */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-5">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="text-xs text-blue-700 font-medium uppercase tracking-wide">Total prévu</div>
+                <div className="text-2xl font-bold text-blue-900 mt-1">{fmtNum(totalForecast)}</div>
+                <div className="text-xs text-blue-600 mt-1">
+                  sur les {result.horizon} {granularityLabelPlural}
+                </div>
+              </div>
+
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <div className="text-xs text-emerald-700 font-medium uppercase tracking-wide">Moyenne / {granularityLabel}</div>
+                <div className="text-2xl font-bold text-emerald-900 mt-1">{fmtNum(avgForecast, 0)}</div>
+                <div className="text-xs text-emerald-600 mt-1">
+                  ventes par {granularityLabel}
+                </div>
+              </div>
+
+              <div className={`${growthTotal >= 0 ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"} border rounded-lg p-4`}>
+                <div className={`text-xs font-medium uppercase tracking-wide ${growthTotal >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                  Évolution
+                </div>
+                <div className={`text-2xl font-bold mt-1 ${growthTotal >= 0 ? "text-emerald-900" : "text-red-900"}`}>
+                  {growthTotal >= 0 ? "+" : ""}{growthTotal.toFixed(1)}%
+                </div>
+                <div className={`text-xs mt-1 ${growthTotal >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                  vs {result.horizon} derniers {granularityLabelPlural}
+                </div>
+              </div>
+
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="text-xs text-purple-700 font-medium uppercase tracking-wide">Fiabilité</div>
+                <div className="text-2xl font-bold text-purple-900 mt-1">{ensembleAccuracy}%</div>
+                <div className="text-xs text-purple-600 mt-1">
+                  basée sur {reliableModelsCount} modèle{reliableModelsCount > 1 ? "s" : ""} fiable{reliableModelsCount > 1 ? "s" : ""}
+                </div>
+              </div>
+            </div>
+
+            {/* === SECTION 2 — Graphique principal === */}
+            <div className="mt-6">
+              <h4 className="text-sm font-semibold text-gray-800 mb-2">
+                Visualisation : courbe des prévisions
+              </h4>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart
+                    data={futureForecast.map((f, i) => ({
+                      ...f,
+                      dateFR: fmtDateFR(f.label),
+                      growth: i === 0
+                        ? ((f.value - lastHistorical) / lastHistorical) * 100
+                        : ((f.value - futureForecast[i - 1].value) / futureForecast[i - 1].value) * 100,
+                    }))}
+                    margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} vertical={false} />
+                    <XAxis dataKey="dateFR" tick={{ fontSize: 11, fill: COLORS.subtle }} />
+                    <YAxis tickFormatter={fmtK} tick={{ fontSize: 11, fill: COLORS.subtle }} />
+                    <Tooltip
+                      formatter={(v, name) => name === "value" ? [fmtNum(v), "Prévision"] : [v.toFixed(1) + "%", "Croissance"]}
+                      contentStyle={{ fontSize: 12, borderRadius: 6 }}
+                    />
+                    <Bar dataKey="value" name="Prévision" fill={COLORS.blue} radius={[3, 3, 0, 0]} />
+                    <Line type="monotone" dataKey="value" stroke="#1d4ed8" strokeWidth={2.5} dot={{ r: 4 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* === SECTION 3 — Tableau détaillé professionnel === */}
+            <div className="mt-6">
+              <h4 className="text-sm font-semibold text-gray-800 mb-2">
+                Détail des prévisions {granularityLabel === "mois" ? "mensuelles" : (granularityLabel === "an" ? "annuelles" : `par ${granularityLabel}`)}
+              </h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-gray-200 text-left bg-gray-50">
+                      <th className="py-3 px-4 font-semibold text-gray-700">{granularityLabel === "mois" ? "Mois" : granularityLabel === "an" ? "Année" : "Période"}</th>
+                      <th className="py-3 px-4 font-semibold text-gray-700 text-right">Prévision</th>
+                      <th className="py-3 px-4 font-semibold text-gray-700 text-right">Variation</th>
+                      <th className="py-3 px-4 font-semibold text-gray-700">Tendance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.forecast_labels.map((label, i) => {
+                      const val = forecastValues[i];
+                      const prev = i === 0 ? lastHistorical : forecastValues[i - 1];
+                      const growth = prev ? ((val - prev) / prev) * 100 : 0;
+                      const isUp = growth >= 0;
+                      return (
+                        <tr key={label} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium text-gray-900">{fmtDateFR(label)}</td>
+                          <td className="py-3 px-4 text-right font-semibold text-blue-700">
+                            {fmtNum(val)}
+                          </td>
+                          <td className={`py-3 px-4 text-right font-medium ${isUp ? "text-emerald-600" : "text-red-600"}`}>
+                            {isUp ? "+" : ""}{growth.toFixed(1)}%
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded ${isUp ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                              {isUp ? "▲ Hausse" : "▼ Baisse"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {/* Ligne TOTAL */}
+                    <tr className="bg-gray-100 border-t-2 border-gray-300 font-bold">
+                      <td className="py-3 px-4 text-gray-900">TOTAL CUMULÉ</td>
+                      <td className="py-3 px-4 text-right text-blue-900 text-base">{fmtNum(totalForecast)}</td>
+                      <td className={`py-3 px-4 text-right ${growthTotal >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                        {growthTotal >= 0 ? "+" : ""}{growthTotal.toFixed(1)}%
+                      </td>
+                      <td className="py-3 px-4 text-xs text-gray-500 font-normal">vs historique récent</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Note méthodologique */}
+            <div className="mt-5 p-3 bg-gray-50 border-l-2 border-gray-300 rounded text-xs text-gray-600">
+              <strong>Méthode de calcul :</strong> moyenne pondérée des prévisions des {reliableModelsCount} modèle{reliableModelsCount > 1 ? "s" : ""} ayant
+              une précision ≥ 70% au test 80/20. Les modèles rejetés (précision insuffisante) ne sont pas inclus dans le calcul,
+              ce qui garantit la fiabilité de la prévision finale.
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+// ============================================================
+// ONGLET 3 — Anomalies
+// ============================================================
+export function AnomaliesTab({ result }) {
+  const chartData = result.series.map((s) => ({
+    label: s.period, sales: s.value,
+  }));
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-base font-semibold text-gray-900">
+          Détection des anomalies
+        </h3>
+        <p className="text-xs text-gray-500 mt-1">
+          Méthode Z-score, seuil 2σ —{" "}
+          <span className="text-orange-600 font-medium">
+            {result.anomalies.length} anomalie{result.anomalies.length > 1 ? "s" : ""} détectée
+            {result.anomalies.length > 1 ? "s" : ""}
+          </span>
+        </p>
+        <div className="h-80 mt-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: COLORS.subtle }}
+                interval={Math.max(1, Math.floor(chartData.length / 12))} />
+              <YAxis tickFormatter={fmtK} tick={{ fontSize: 11, fill: COLORS.subtle }} />
+              <Tooltip formatter={(v) => fmtK(v)} contentStyle={{ fontSize: 12, borderRadius: 6 }} />
+              <Area type="monotone" dataKey="sales" name="Ventes"
+                stroke={COLORS.green} fill={COLORS.greenLight} strokeWidth={2} />
+              {result.anomalies.map((a) => (
+                <ReferenceDot key={a.period} x={a.period} y={a.value}
+                  r={6} fill={COLORS.red} stroke="#fff" strokeWidth={2} />
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">
+          Périodes anormales identifiées
+        </h3>
+        {result.anomalies.length === 0 ? (
+          <p className="text-sm text-gray-500">Aucune anomalie détectée.</p>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {result.anomalies.map((a) => (
+              <div key={a.period} className="flex justify-between items-center py-3">
+                <div className="text-sm">
+                  <span className="text-gray-600">Période : </span>
+                  <span className="font-semibold">{a.period}</span>
+                  <span className="ml-3 text-xs text-gray-500">z = {a.zscore}</span>
+                </div>
+                <div className="text-sm font-medium" style={{ color: COLORS.red }}>
+                  {fmtK(a.value)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ONGLET 4 — Catégories
+// ============================================================
+export function CategoriesTab({ result }) {
+  if (!result.category_breakdown) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500 text-sm">
+        Aucune colonne de catégorie sélectionnée pour ce dataset.
+      </div>
+    );
+  }
+
+  const data = Object.entries(result.category_breakdown)
+    .map(([name, v]) => ({ name, value: v.total, count: v.count }))
+    .sort((a, b) => b.value - a.value);
+  const total = data.reduce((s, d) => s + d.value, 0);
+
+  // Top et Flop — logique adaptative
+  // - Si > 6 catégories : Top 5 + Flop 5
+  // - Si 4-6 catégories : Top moitié + Flop moitié (sans chevauchement)
+  // - Si 2-3 catégories : Top complet uniquement
+  let topItems = [];
+  let flopItems = [];
+  if (data.length >= 7) {
+    topItems = data.slice(0, 5);
+    flopItems = data.slice(-5).reverse();
+  } else if (data.length >= 4) {
+    const half = Math.floor(data.length / 2);
+    topItems = data.slice(0, half);
+    flopItems = data.slice(-half).reverse();
+  } else {
+    topItems = data;
+    flopItems = [];
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* === TOP & FLOP — vue rapide pour décideurs === */}
+      {data.length >= 2 && (
+        <div className={`grid grid-cols-1 ${flopItems.length > 0 ? "lg:grid-cols-2" : ""} gap-6`}>
+          {/* Top — Articles les plus vendus */}
+          <div className="bg-white rounded-lg border border-emerald-200 p-5">
+            <h3 className="text-base font-semibold text-gray-900">
+              Top {topItems.length} — articles les plus performants
+            </h3>
+            <p className="text-xs text-gray-500 mt-1 mb-4">
+              Articles les mieux vendus — à prioriser en stock et marketing
+            </p>
+            <div className="space-y-2">
+              {topItems.map((d, i) => {
+                const pct = total ? (d.value / total) * 100 : 0;
+                return (
+                  <div key={d.name} className="flex items-center gap-3">
+                    <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-baseline gap-2">
+                        <span className="text-sm font-medium text-gray-900 truncate">{d.name}</span>
+                        <span className="text-sm font-bold text-emerald-700 flex-shrink-0">{fmtK(d.value)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>{pct.toFixed(1)}% du total</span>
+                        <span>{d.count} transactions</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Flop — Articles les moins vendus */}
+          {flopItems.length > 0 && (
+            <div className="bg-white rounded-lg border border-red-200 p-5">
+              <h3 className="text-base font-semibold text-gray-900">
+                Bottom {flopItems.length} — articles les moins performants
+              </h3>
+              <p className="text-xs text-gray-500 mt-1 mb-4">
+                Articles les moins demandés — à analyser ou réviser
+              </p>
+              <div className="space-y-2">
+                {flopItems.map((d, i) => {
+                  const pct = total ? (d.value / total) * 100 : 0;
+                  return (
+                    <div key={d.name} className="flex items-center gap-3">
+                      <span className="w-6 h-6 rounded-full bg-red-100 text-red-700 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                        {i + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-baseline gap-2">
+                          <span className="text-sm font-medium text-gray-900 truncate">{d.name}</span>
+                          <span className="text-sm font-bold text-red-700 flex-shrink-0">{fmtK(d.value)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>{pct.toFixed(1)}% du total</span>
+                          <span>{d.count} transactions</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* === Graphique complet (toutes catégories) === */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">
+          Répartition complète des ventes par catégorie
+        </h3>
+        <div className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} layout="vertical"
+              margin={{ top: 10, right: 30, left: 80, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} horizontal={false} />
+              <XAxis type="number" tickFormatter={fmtK} tick={{ fontSize: 11, fill: COLORS.subtle }} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: COLORS.text }} width={110} />
+              <Tooltip formatter={(v) => fmtK(v)} contentStyle={{ fontSize: 12, borderRadius: 6 }} />
+              <Bar dataKey="value" fill={COLORS.green} radius={[0, 3, 3, 0]} barSize={26} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {data.map((d) => {
+          const pct = total ? (d.value / total) * 100 : 0;
+          return (
+            <div key={d.name} className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="text-sm text-gray-600">{d.name}</div>
+              <div className="text-2xl font-semibold mt-1">{fmtK(d.value)}</div>
+              <div className="w-full h-1 bg-gray-100 rounded-full mt-3 overflow-hidden">
+                <div className="h-full rounded-full"
+                  style={{ width: `${pct}%`, background: COLORS.green }} />
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {pct.toFixed(1)}% du total — {d.count} transactions
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ONGLET 5 — Modèles ML (comparaison des 4 algorithmes)
+// ============================================================
+export function ModelsTab({ result }) {
+  // Graphe : prévisions des 4 modèles côte à côte
+  const chartData = result.forecast_labels.map((label, i) => {
+    const row = { label };
+    result.models.forEach((m) => {
+      row[m.key] = m.forecast[i];
+    });
+    row.ensemble = result.ensemble.forecast[i];
+    return row;
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-base font-semibold text-gray-900">
+          Comparaison des modèles — prévisions sur l'horizon futur
+        </h3>
+        <p className="text-xs text-gray-500 mt-1 mb-4">
+          Les 4 modèles entraînés en parallèle, avec leurs prévisions individuelles et la <strong>prévision finale (Ensemble)</strong> en gras.
+          L'ensemble est la moyenne pondérée des modèles fiables (≥ 70%).
+        </p>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart
+              data={result.forecast_labels.map((label, i) => {
+                const row = { date: fmtDateFR(label) };
+                result.models.forEach((m) => {
+                  row[m.key] = m.forecast[i];
+                });
+                row.ensemble = result.ensemble.forecast[i];
+                return row;
+              })}
+              margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: COLORS.subtle }} />
+              <YAxis tickFormatter={fmtK} tick={{ fontSize: 11, fill: COLORS.subtle }} />
+              <Tooltip formatter={(v) => fmtNum(v)} contentStyle={{ fontSize: 12, borderRadius: 6 }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              {result.models.map((m) => (
+                <Line
+                  key={m.key}
+                  type="monotone"
+                  dataKey={m.key}
+                  name={m.name}
+                  stroke={MODEL_COLORS[m.key]}
+                  strokeWidth={1.5}
+                  dot={{ r: 3 }}
+                  opacity={0.7}
+                />
+              ))}
+              <Line
+                type="monotone"
+                dataKey="ensemble"
+                name="Ensemble (prévision finale)"
+                stroke={MODEL_COLORS.ensemble}
+                strokeWidth={3.5}
+                dot={{ r: 5 }}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-base font-semibold text-gray-900 mb-4">
+          Métriques de qualité des modèles
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 text-left">
+                <th className="py-2 pr-4 font-medium text-gray-600">Modèle</th>
+                <th className="py-2 pr-4 font-medium text-gray-600">R²</th>
+                <th className="py-2 pr-4 font-medium text-gray-600">MAE</th>
+                <th className="py-2 pr-4 font-medium text-gray-600">RMSE</th>
+                <th className="py-2 pr-4 font-medium text-gray-600">Poids ensemble</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.models.map((m) => {
+                const isBest = m.key === result.best_model;
+                return (
+                  <tr key={m.key} className="border-b border-gray-50">
+                    <td className="py-2.5 pr-4">
+                      <span className="font-medium text-gray-900">{m.name}</span>
+                      {isBest && (
+                        <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">
+                          meilleur
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2.5 pr-4 text-gray-700">{m.metrics.r2 ?? "—"}</td>
+                    <td className="py-2.5 pr-4 text-gray-700">{fmtK(m.metrics.mae)}</td>
+                    <td className="py-2.5 pr-4 text-gray-700">{fmtK(m.metrics.rmse)}</td>
+                    <td className="py-2.5 pr-4 text-gray-700">
+                      {result.ensemble.weights[m.key] !== undefined
+                        ? (result.ensemble.weights[m.key] * 100).toFixed(1) + "%"
+                        : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-3 text-xs text-gray-500">
+          Le R² mesure la qualité de l'ajustement (plus proche de 1, meilleur).
+          L'ensemble combine les modèles en pondérant par leur R².
+        </p>
+      </div>
+
+      {/* ====== VALIDATION TRAIN / TEST (80% / 20%) ====== */}
+      {result.validation && !result.validation.error && (
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-base font-semibold text-gray-900">
+            Précision globale par modèle (moyenne sur le test set)
+          </h3>
+          <p className="text-xs text-gray-500 mt-1">
+            Précision réelle des modèles sur des données jamais vues pendant
+            l'entraînement —{" "}
+            <span className="font-medium">{result.validation.n_train} périodes</span>{" "}
+            pour entraîner,{" "}
+            <span className="font-medium">{result.validation.n_test} périodes</span>{" "}
+            pour tester. Seuil de fiabilité :{" "}
+            <span className="font-medium">{result.validation.threshold_pct}%</span>
+          </p>
+
+          {/* COURBE/BARRES de précision par modèle */}
+          <div className="h-64 mt-5">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={Object.entries(result.validation.models)
+                  .filter(([key, m]) => m.accuracy_pct !== null && m.accuracy_pct !== undefined)
+                  .map(([key, m]) => ({
+                    name: ({
+                      linear: "Linéaire",
+                      polynomial: "Polynomiale",
+                      random_forest: "Random Forest",
+                      arima: "ARIMA",
+                    }[key] || key),
+                    accuracy: m.accuracy_pct,
+                    reliable: m.is_reliable,
+                  }))}
+                margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 12, fill: COLORS.subtle }} />
+                <YAxis
+                  domain={[0, 100]}
+                  tickFormatter={(v) => `${v}%`}
+                  tick={{ fontSize: 11, fill: COLORS.subtle }}
+                />
+                <Tooltip
+                  formatter={(v) => [`${v.toFixed(2)}%`, "Précision"]}
+                  contentStyle={{ fontSize: 12, borderRadius: 6 }}
+                />
+                <ReferenceLine
+                  y={result.validation.threshold_pct}
+                  stroke="#dc2626"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: `Seuil ${result.validation.threshold_pct}%`,
+                    position: "right",
+                    fill: "#dc2626",
+                    fontSize: 11,
+                  }}
+                />
+                <Bar dataKey="accuracy" radius={[4, 4, 0, 0]}>
+                  {Object.entries(result.validation.models)
+                    .filter(([key, m]) => m.accuracy_pct !== null && m.accuracy_pct !== undefined)
+                    .map(([key, m], i) => (
+                      <Cell key={i} fill={m.is_reliable ? "#16a34a" : "#dc2626"} />
+                    ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-xs text-gray-500 text-center -mt-2">
+            Barres vertes = modèles fiables (≥ seuil) — Barres rouges = modèles rejetés (&lt; seuil)
+          </p>
+
+          <div className="overflow-x-auto mt-4">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 text-left">
+                  <th className="py-2 pr-4 font-medium text-gray-600">Modèle</th>
+                  <th className="py-2 pr-4 font-medium text-gray-600">Précision (%)</th>
+                  <th className="py-2 pr-4 font-medium text-gray-600">MAPE</th>
+                  <th className="py-2 pr-4 font-medium text-gray-600">MAE</th>
+                  <th className="py-2 pr-4 font-medium text-gray-600">Verdict</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(result.validation.models).map(([key, m]) => {
+                  const modelName = {
+                    linear: "Régression linéaire",
+                    polynomial: "Régression polynomiale",
+                    random_forest: "Random Forest",
+                    arima: "ARIMA(1,1,1)",
+                  }[key] || key;
+                  const acc = m.accuracy_pct;
+                  const reliable = m.is_reliable;
+                  return (
+                    <tr key={key} className="border-b border-gray-50">
+                      <td className="py-2.5 pr-4 font-medium text-gray-900">
+                        {modelName}
+                      </td>
+                      <td className="py-2.5 pr-4">
+                        <span
+                          className="font-semibold"
+                          style={{ color: reliable ? "#16a34a" : "#dc2626" }}
+                        >
+                          {acc !== null && acc !== undefined ? `${acc}%` : "—"}
+                        </span>
+                      </td>
+                      <td className="py-2.5 pr-4 text-gray-700">
+                        {m.mape !== null && m.mape !== undefined ? `${m.mape}%` : "—"}
+                      </td>
+                      <td className="py-2.5 pr-4 text-gray-700">{fmtK(m.mae)}</td>
+                      <td className="py-2.5 pr-4">
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            reliable
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {reliable ? "✓ Fiable" : "✗ À rejeter"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="mt-3 text-xs text-gray-500">
+            Précision = 100% − MAPE. Seuil de fiabilité : 70%.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

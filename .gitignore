@@ -1,0 +1,78 @@
+# ====================================
+# SECRETS (NE JAMAIS PUSHER)
+# ====================================
+backend-flask/.env
+backend-flask/.env.local
+backend-flask/.env.production
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.production.local
+
+# ====================================
+# DEPENDANCES (téléchargeables)
+# ====================================
+backend-flask/venv/
+backend-flask/.venv/
+backend-flask/__pycache__/
+backend-flask/**/__pycache__/
+backend-flask/*.pyc
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/package-lock.json
+
+# ====================================
+# BASE DE DONNÉES & FICHIERS UPLOADÉS
+# ====================================
+backend-flask/instance/
+backend-flask/*.db
+backend-flask/*.sqlite
+backend-flask/*.sqlite3
+backend-flask/uploads/*.csv
+backend-flask/uploads/*.xlsx
+backend-flask/uploads/*.xls
+!backend-flask/uploads/.gitkeep
+
+# ====================================
+# TOUS LES DOSSIERS DE BACKUP
+# ====================================
+backend-flask-etape1-backup/
+backend-flask-old-backup/
+backend-flask-v9-backup/
+backend-flask-v11-backup/
+backend-flask-v12-backup/
+backend-flask-v13-backup/
+backend-flask-v13-cassé/
+frontend-v10-backup/
+frontend-v11-backup/
+frontend-v11-cassé-backup/
+frontend-v11-fix-backup/
+frontend-v12-backup/
+frontend-v12-clean-backup/
+frontend-v13-backup/
+frontend-v14-backup/
+frontend-v15-backup/
+*-backup/
+*-backup-*/
+
+# ====================================
+# SYSTÈME / IDE
+# ====================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ====================================
+# LOGS
+# ====================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+backend-flask-v13-cassé/
+*-cassé/
