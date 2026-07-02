@@ -1,60 +1,37 @@
 # ====================================
-# SECRETS (NE JAMAIS PUSHER)
+# SECRETS (NE JAMAIS PUSHER) - exclus partout, quel que soit le dossier
 # ====================================
-backend-flask/.env
-backend-flask/.env.local
-backend-flask/.env.production
-frontend/.env.local
-frontend/.env.development.local
-frontend/.env.production.local
+.env
+.env.local
+.env.development.local
+.env.production.local
+.env.production
+!*.env.example
 
 # ====================================
-# DEPENDANCES (téléchargeables)
+# DEPENDANCES (téléchargeables) - exclues partout
 # ====================================
-backend-flask/venv/
-backend-flask/.venv/
-backend-flask/__pycache__/
-backend-flask/**/__pycache__/
-backend-flask/*.pyc
-frontend/node_modules/
-frontend/.next/
-frontend/out/
-frontend/build/
-frontend/package-lock.json
+venv/
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+.next/
+out/
+build/
+package-lock.json
 
 # ====================================
 # BASE DE DONNÉES & FICHIERS UPLOADÉS
 # ====================================
-backend-flask/instance/
-backend-flask/*.db
-backend-flask/*.sqlite
-backend-flask/*.sqlite3
-backend-flask/uploads/*.csv
-backend-flask/uploads/*.xlsx
-backend-flask/uploads/*.xls
-!backend-flask/uploads/.gitkeep
-
-# ====================================
-# TOUS LES DOSSIERS DE BACKUP
-# ====================================
-backend-flask-etape1-backup/
-backend-flask-old-backup/
-backend-flask-v9-backup/
-backend-flask-v11-backup/
-backend-flask-v12-backup/
-backend-flask-v13-backup/
-backend-flask-v13-cassé/
-frontend-v10-backup/
-frontend-v11-backup/
-frontend-v11-cassé-backup/
-frontend-v11-fix-backup/
-frontend-v12-backup/
-frontend-v12-clean-backup/
-frontend-v13-backup/
-frontend-v14-backup/
-frontend-v15-backup/
-*-backup/
-*-backup-*/
+instance/
+*.db
+*.sqlite
+*.sqlite3
+uploads/*.csv
+uploads/*.xlsx
+uploads/*.xls
+!uploads/.gitkeep
 
 # ====================================
 # SYSTÈME / IDE
@@ -66,6 +43,7 @@ Thumbs.db
 *.swp
 *.swo
 *~
+*.bak
 
 # ====================================
 # LOGS
@@ -74,5 +52,3 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-backend-flask-v13-cassé/
-*-cassé/

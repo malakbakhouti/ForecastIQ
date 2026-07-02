@@ -1,29 +1,54 @@
-# Environment variables (excluded everywhere, at any depth)
+# ====================================
+# SECRETS (NE JAMAIS PUSHER) - exclus partout, quel que soit le dossier
+# ====================================
 .env
 .env.local
 .env.development.local
-.env.test.local
 .env.production.local
+.env.production
 !*.env.example
 
-# Node / Next.js
+# ====================================
+# DEPENDANCES (téléchargeables) - exclues partout
+# ====================================
+venv/
+.venv/
+__pycache__/
+*.pyc
 node_modules/
 .next/
 out/
+build/
+package-lock.json
 
-# Python / Flask
-__pycache__/
-*.pyc
-venv/
-env/
-.venv/
+# ====================================
+# BASE DE DONNÉES & FICHIERS UPLOADÉS
+# ====================================
+instance/
+*.db
+*.sqlite
+*.sqlite3
+uploads/*.csv
+uploads/*.xlsx
+uploads/*.xls
+!uploads/.gitkeep
 
-# Backup files
+# ====================================
+# SYSTÈME / IDE
+# ====================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 *.bak
 
-# OS
-.DS_Store
-
-# Datasets (large sample files)
-*.csv
-*.xlsx
+# ====================================
+# LOGS
+# ====================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
