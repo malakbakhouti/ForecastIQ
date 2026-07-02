@@ -1,4 +1,4 @@
-# 📈 ForecastIQ – Sales Forecasting & Business Intelligence Platform
+**📈 ForecastIQ – Sales Forecasting & Business Intelligence Platform**
 
 ForecastIQ is a full‑stack web platform designed to import, clean, analyze and forecast sales data using multiple Machine Learning models, anomaly detection and role‑based dashboards.
 
