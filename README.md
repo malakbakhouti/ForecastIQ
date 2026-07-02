@@ -91,7 +91,7 @@ cd frontend
 npm install
 npm run dev
 ```
-# Sample Dataset
+**Sample Dataset**
 
 `train.csv` — sample sales dataset used to test ForecastIQ's import and forecasting features.
 
