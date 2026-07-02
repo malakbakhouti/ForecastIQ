@@ -1,29 +1,29 @@
-📈 ForecastIQ – Sales Forecasting & Business Intelligence Platform
+**📈 ForecastIQ – Sales Forecasting & Business Intelligence Platform**
 
 ForecastIQ is a full‑stack web platform designed to import, clean, analyze and forecast sales data using multiple Machine Learning models, anomaly detection and role‑based dashboards.
 
-This project was developed as an end‑of‑year academic project (PFA) at EMSI, by BAKHOUTI Malak and EL-GHAZOUI Mohamed, supervised by Mme Aarich Mounia.
+This project was developed as an end‑of‑year academic project (PFA) at EMSI, by BAKHOUTI Malak and EL-GHAZOUI Mohamed, supervised by **Mme Aarich Mounia**.
 
-🚀 Main Features
+**🚀 Main Features**
 
-📊 Analyste (Student/Main user)
+**📊 Analyste**
 * Create account and log in securely (JWT)
 * Import sales files (CSV, XLSX, XLS) with column mapping preview
 * Launch forecasts with configurable granularity and horizon
 * View dashboard: overview, forecasts, anomalies, categories, ML models
 
-🧑‍💼 Manager
+**🧑‍💼 Manager**
 * Review imported datasets
 * Add annotations on results
 * Validate certain results
 
-🛡️ Admin
+**🛡️ Admin**
 * Manage users (list, activate/suspend, change role)
 * View global platform statistics
 * Access activity logs
 * Track important system operations
 
-🏗️ Architecture Overview
+**🏗️ Architecture Overview**
 
 ForecastIQ uses a multi-layer architecture, each layer for a specific responsibility:
 
@@ -34,26 +34,26 @@ ForecastIQ uses a multi-layer architecture, each layer for a specific responsibi
 | ML Engine | Scikit-learn, Statsmodels | Forecasting models & metrics |
 | Database | PostgreSQL | Users, datasets, forecasts, activity logs |
 
-🗄️ Forecasting Models – Usage Summary
+**🗄️ Forecasting Models – Usage Summary**
 
-Linear Regression
+**Linear Regression**
 * Baseline trend estimation
 
-Polynomial Regression
+**Polynomial Regression**
 * Captures non-linear trends
 
-Random Forest
+**Random Forest**
 * Ensemble tree-based regression for complex patterns
 
-ARIMA
+**ARIMA**
 * Classical time-series forecasting
 
-Ensemble Model
+**Ensemble Model**
 * Combines all models above
 * Excludes any model scoring below a 70% reliability threshold on the test set
 * Compared using MAE, RMSE and R²
 
-🔄 Key Usage Scenarios
+**🔄 Key Usage Scenarios**
 
 1️⃣ File import & preprocessing
 1. User uploads a CSV/XLSX sales file
@@ -74,9 +74,9 @@ Ensemble Model
 2. Atypical values (spikes, drops) identified
 3. Anomalies displayed with date, value and deviation
 
-▶️ Run the Project
+**▶️ Run the Project**
 
-Backend
+**Backend**
 ```bash
 cd backend-flask
 python3 -m venv venv
@@ -85,23 +85,23 @@ pip install -r requirements.txt
 flask run
 ```
 
-Frontend
+**Frontend**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-📁 Sample Dataset
+**📁 Sample Dataset**
 
 A sample dataset is available at `sample-data/train.csv` to quickly test the import and forecasting features — sourced from the [Sales Forecasting dataset by Rohit Sahoo on Kaggle](https://www.kaggle.com/datasets/rohitsahoo/sales-forecasting). Provided for demonstration purposes only; all rights belong to the original dataset author.
 
-🔮 Future Improvements
+**🔮 Future Improvements**
 * Additional forecasting models (Prophet, LSTM)
 * Real-time collaborative annotations for managers
 * Export of forecasts and reports (PDF/Excel)
 * SaaS multi-tenant deployment
 
-🎤 Conclusion
+**🎤 Conclusion**
 
 ForecastIQ illustrates a complete sales forecasting platform, combining a Next.js/Flask full-stack architecture with a multi-model Machine Learning engine (Linear Regression, Polynomial Regression, Random Forest, ARIMA and ensemble learning), anomaly detection, and role-based dashboards to support data-driven business decisions.
