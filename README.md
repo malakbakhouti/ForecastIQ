@@ -1,149 +1,103 @@
-# ForecastIQ — Application web de prévision des ventes
+# 📈 ForecastIQ – Sales Forecasting & Business Intelligence Platform
 
-Application full-stack de prévision des ventes par Machine Learning, développée dans le cadre du Projet de Fin d'Année (PFA) à l'**EMSI Rabat** (École Marocaine des Sciences de l'Ingénieur, 4ème année DDSIR).
+ForecastIQ is a full‑stack web platform designed to import, clean, analyze and forecast sales data using multiple Machine Learning models, anomaly detection and role‑based dashboards.
 
-## Aperçu
+This project was developed as an end‑of‑year academic project (PFA) at EMSI, by BAKHOUTI Malak and EL-GHAZOUI Mohamed, supervised by **Mme Aarich Mounia**.
 
-ForecastIQ analyse automatiquement n'importe quel fichier CSV de ventes et produit :
+**🚀 Main Features**
 
-- Une **analyse exploratoire** complète (statistiques descriptives, courbes, tendances)
-- Des **prévisions de ventes** via 4 modèles de Machine Learning
-- Une **validation scientifique** train/test 80/20 avec seuil de fiabilité à 70%
-- Une **détection d'anomalies** par méthode Z-score
-- Une **ventilation par catégories** quand le dataset le permet
+📊 Analyste (Student/Main user)
+* Create account and log in securely (JWT)
+* Import sales files (CSV, XLSX, XLS) with column mapping preview
+* Launch forecasts with configurable granularity and horizon
+* View dashboard: overview, forecasts, anomalies, categories, ML models
 
-## Stack technique
+🧑‍💼 Manager
+* Review imported datasets
+* Add annotations on results
+* Validate certain results
 
-### Backend
-- **Flask** (Python) — API REST
-- **PostgreSQL** — base de données
-- **JWT** (HS256) — authentification sécurisée
-- **bcrypt** — hashage des mots de passe (coût 12)
+🛡️ Admin
+* Manage users (list, activate/suspend, change role)
+* View global platform statistics
+* Access activity logs
+* Track important system operations
 
-### Machine Learning
-- **scikit-learn** — Régression linéaire, Régression polynomiale, Random Forest
-- **statsmodels** — ARIMA(1,1,1)
-- **pandas** — manipulation des séries temporelles
-- **numpy** — calculs statistiques
+**🏗️ Architecture Overview**
 
-### Frontend
-- **Next.js 14** (App Router) — framework React
-- **Tailwind CSS** — styling
-- **Recharts** — graphiques
+ForecastIQ uses a multi-layer architecture, each layer for a specific responsibility:
 
-## Fonctionnalités principales
+| Layer | Technology | Role |
+|---|---|---|
+| Frontend | Next.js / React.js | User interface, dashboard, charts |
+| Backend | Flask (Python) | REST API, authentication, orchestration |
+| ML Engine | Scikit-learn, Statsmodels | Forecasting models & metrics |
+| Database | PostgreSQL | Users, datasets, forecasts, activity logs |
 
-### Détection automatique des colonnes
-L'application détecte automatiquement la colonne **date** et la colonne **valeur** d'un CSV en se basant sur un système de score (format, nom, variabilité).
+**🗄️ Forecasting Models – Usage Summary**
 
-### Quatre modèles ML en parallèle
-1. **Régression linéaire** — tendance long terme (sklearn)
-2. **Régression polynomiale degré 2** — courbure (sklearn)
-3. **Random Forest** (100 arbres) — patterns complexes (sklearn)
-4. **ARIMA(1,1,1)** — séries temporelles (statsmodels)
+**Linear Regression**
+* Baseline trend estimation
 
-### Validation rigoureuse train/test 80/20
-Chaque modèle est testé sur 20% de données qu'il n'a jamais vues pendant l'entraînement. Précision calculée comme `100% - MAPE`. Seuil de fiabilité : **70%**.
+**Polynomial Regression**
+* Captures non-linear trends
 
-### Ensemble pondéré
-La prévision finale combine **uniquement les modèles validés** (≥70%) via une moyenne pondérée par leur précision.
+**Random Forest**
+* Ensemble tree-based regression for complex patterns
 
-### Granularité dynamique
-Bascule en temps réel entre granularité **journalière, hebdomadaire, mensuelle**. Réagrégation et ré-entraînement automatique des modèles.
+**ARIMA**
+* Classical time-series forecasting
 
-### Horizon paramétrable
-Prévisions de 1 à 24 périodes futures, ajustables par curseur.
+**Ensemble Model**
+* Combines all models above
+* Excludes any model scoring below a 70% reliability threshold on the test set
+* Compared using MAE, RMSE and R²
 
-### Rôles utilisateurs
-- **Utilisateur** — analyse de ses propres datasets
-- **Manager** — lecture seule
-- **Administrateur** — gestion des utilisateurs et de tous les datasets
+**🔄 Key Usage Scenarios**
 
-## Architecture
+1️⃣ File import & preprocessing
+1. User uploads a CSV/XLSX sales file
+2. System detects date, numeric and category columns
+3. User validates the column mapping
+4. Pandas cleans the data (dates, duplicates, missing values)
+5. Dataset saved to PostgreSQL
 
-```
-forecastiq/
-├── backend-flask/        # API Flask + moteur ML
-│   ├── app.py            # Point d'entrée
-│   ├── auth.py           # JWT, bcrypt
-│   ├── csv_analyzer.py   # Détection auto + nettoyage
-│   ├── forecast_engine.py # 4 modèles ML + validation + anomalies
-│   ├── datasets.py       # Endpoints datasets
-│   ├── forecasts.py      # Endpoints prévisions
-│   ├── admin.py          # Endpoints administration
-│   └── models.py         # ORM SQLAlchemy
-│
-└── frontend/             # Next.js dashboard
-    ├── app/
-    │   ├── dashboard/    # Dashboard 5 onglets
-    │   ├── upload/       # Import CSV
-    │   ├── admin/        # Gestion utilisateurs
-    │   └── login/        # Authentification
-    └── components/
-        └── DashboardTabs.js # Vue d'ensemble, Modèles ML, Prévisions, Anomalies, Catégories
-```
+2️⃣ Forecast generation
+1. User selects granularity (day/week/month) and horizon
+2. Multiple ML models trained in parallel
+3. Models below 70% reliability excluded from ensemble
+4. Metrics computed (MAE, RMSE, R²)
+5. Dashboard updated with forecasts and model comparison
 
-## Installation
+3️⃣ Anomaly detection
+1. Historical sales analyzed statistically
+2. Atypical values (spikes, drops) identified
+3. Anomalies displayed with date, value and deviation
 
-### Prérequis
-- Python 3.10+
-- Node.js 18+
-- PostgreSQL 14+
+**▶️ Run the Project**
 
-### Backend
-
+Backend
 ```bash
-cd backend-flask
-python3 -m venv venv
+cd backend
+python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-
-# Configurer la base
-cp .env.example .env
-# Éditer .env avec votre DATABASE_URL et JWT_SECRET_KEY
-
-python init_db.py
-python app.py
+flask run
 ```
 
-Backend disponible sur `http://localhost:3001`.
-
-### Frontend
-
+Frontend
 ```bash
 cd frontend
-cp .env.local.example .env.local
 npm install
 npm run dev
 ```
 
-Frontend disponible sur `http://localhost:3000`.
+**🔮 Future Improvements**
+* Additional forecasting models (Prophet, LSTM)
+* Real-time collaborative annotations for managers
+* Export of forecasts and reports (PDF/Excel)
+* SaaS multi-tenant deployment
 
-## Utilisation
+**🎤 Conclusion**
 
-1. Se connecter avec le compte administrateur par défaut
-2. Aller dans **Importer** et déposer un fichier CSV (avec une colonne date + une colonne numérique)
-3. Confirmer la détection automatique des colonnes
-4. Explorer les 5 onglets du dashboard :
-   - **Vue d'ensemble** — Courbe historique + tendance + prévisions
-   - **Modèles ML** — Comparaison des 4 modèles + validation 80/20
-   - **Prévisions** — Réel vs prédit + prévisions futures
-   - **Anomalies** — Détection Z-score 2σ
-   - **Catégories** — Ventilation par segments
-
-## Captures d'écran
-
-À ajouter dans le dossier `docs/screenshots/`.
-
-## Auteurs
-
-- **Malak BAKHOUTI** — Développement full-stack, conception du moteur ML
-- **EL-GHAZOUI Mohamed** — Binôme PFA
-
-**Encadrante :** Mme Aarich Mounia
-**Établissement :** EMSI Rabat — 4ème année DDSIR
-**Année :** 2025-2026
-
-## Licence
-
-Projet académique — usage éducatif.
+ForecastIQ illustrates a complete sales forecasting platform, combining a Next.js/Flask full-stack architecture with a multi-model Machine Learning engine (Linear Regression, Polynomial Regression, Random Forest, ARIMA and ensemble learning), anomaly detection, and role-based dashboards to support data-driven business decisions.
